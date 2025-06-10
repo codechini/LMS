@@ -1,0 +1,143 @@
+# Define the SQL schema content as a string
+sql_schema = """
+-- USERS TABLE
+CREATE TABLE Users (
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100),
+    role ENUM('admin', 'instructor', 'student') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- COURSES TABLE
+CREATE TABLE Courses (
+    course_id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(100) NOT NULL,
+    description TEXT,
+    instructor_id INT,
+    required_plan_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (instructor_id) REFERENCES Users(user_id),
+    FOREIGN KEY (required_plan_id) REFERENCES SubscriptionPlans(plan_id)
+);
+
+-- ENROLLMENTS TABLE
+CREATE TABLE Enrollments (
+    enrollment_id INT PRIMARY KEY AUTO_INCREMENT,
+    course_id INT NOT NULL,
+    student_id INT NOT NULL,
+    enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (course_id) REFERENCES Courses(course_id),
+    FOREIGN KEY (student_id) REFERENCES Users(user_id),
+    UNIQUE(course_id, student_id)
+);
+
+-- LESSONS TABLE
+CREATE TABLE Lessons (
+    lesson_id INT PRIMARY KEY AUTO_INCREMENT,
+    course_id INT NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    content TEXT,
+    position INT,
+    FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+);
+
+-- ASSIGNMENTS TABLE
+CREATE TABLE Assignments (
+    assignment_id INT PRIMARY KEY AUTO_INCREMENT,
+    course_id INT NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    description TEXT,
+    due_date DATETIME,
+    FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+);
+
+-- SUBMISSIONS TABLE
+CREATE TABLE Submissions (
+    submission_id INT PRIMARY KEY AUTO_INCREMENT,
+    assignment_id INT NOT NULL,
+    student_id INT NOT NULL,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    content TEXT,
+    grade DECIMAL(5,2),
+    feedback TEXT,
+    FOREIGN KEY (assignment_id) REFERENCES Assignments(assignment_id),
+    FOREIGN KEY (student_id) REFERENCES Users(user_id),
+    UNIQUE(assignment_id, student_id)
+);
+
+-- SUBSCRIPTION PLANS
+CREATE TABLE SubscriptionPlans (
+    plan_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    price DECIMAL(10, 2) NOT NULL,
+    duration_days INT NOT NULL,
+    description TEXT,
+    max_courses INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- USER SUBSCRIPTIONS
+CREATE TABLE UserSubscriptions (
+    subscription_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    plan_id INT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    canceled_at DATE,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    FOREIGN KEY (plan_id) REFERENCES SubscriptionPlans(plan_id)
+);
+
+-- PLAN COURSE ACCESS (optional)
+CREATE TABLE PlanCourseAccess (
+    plan_id INT,
+    course_id INT,
+    PRIMARY KEY (plan_id, course_id),
+    FOREIGN KEY (plan_id) REFERENCES SubscriptionPlans(plan_id),
+    FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+);
+
+-- PAYMENTS TABLE
+CREATE TABLE Payments (
+    payment_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    subscription_id INT,
+    amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'USD',
+    payment_method VARCHAR(50),
+    status ENUM('pending', 'completed', 'failed', 'refunded') NOT NULL,
+    transaction_reference VARCHAR(100),
+    paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    FOREIGN KEY (subscription_id) REFERENCES UserSubscriptions(subscription_id)
+);
+
+-- INVOICES TABLE
+CREATE TABLE Invoices (
+    invoice_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    subscription_id INT,
+    issue_date DATE NOT NULL,
+    due_date DATE,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'USD',
+    status ENUM('issued', 'paid', 'overdue', 'cancelled') DEFAULT 'issued',
+    FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    FOREIGN KEY (subscription_id) REFERENCES UserSubscriptions(subscription_id)
+);
+
+-- BILLING INFO TABLE
+CREATE TABLE BillingInfo (
+    billing_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    auto_renew BOOLEAN DEFAULT TRUE,
+    last_payment_id INT,
+    next_billing_date DATE,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    FOREIGN KEY (last_payment_id) REFERENCES Payments(payment_id)
+);
+"""
